@@ -14,6 +14,7 @@ parser.add_argument(
     'ans', type=str, help='contestant\'s solution file')
 parser.add_argument(
     'tests', type=str, help='path to testdata directory')
+# tests (in cms format: xx-yy.in, xx-yy.sol)
 parser.add_argument('TL', type=int, help='time limit in ms')
 args = parser.parse_args()
 ansfn = args.ans
@@ -22,13 +23,21 @@ testdir = args.tests
 ans_path = pathlib.Path(ansfn).resolve(True)
 tests_path = pathlib.Path(testdir).resolve(True)
 
+groups = {}
+for testfile in tests_path.glob('*.in'):
+    sub, test = map(int, testfile.stem.split('-'))
+    if sub not in groups:
+        groups[sub] = set([test])
+    else:
+        groups[sub].add(test)
+
 TIMEOUT = args.TL / 1000  # time limit in seconds
-groups = [5, 5, 10, 10, 7, 8, 15]  # tests (in cms format: xx-yy.in, xx-yy.sol)
 mainres = []
-for i in range(len(groups)):
+for sub, tests in sorted(groups.items()):
     groupres = ''
-    for j in range(groups[i]):
-        with (tests_path / f'{i+1}-{j+1}.in').open() as inf:
+    for test in sorted(tests):
+        print(f'Evaluating subtask {sub}, test {test}', end=': ')
+        with (tests_path / f'{str(sub).zfill(2)}-{str(test).zfill(2)}.in').open() as inf:
             result = None
             with open(f'./tmp.out', 'w') as ouf:
                 proc = subprocess.Popen(
@@ -46,12 +55,13 @@ for i in range(len(groups)):
                     result = 'x'
             if result is None:
                 with open(f'./tmp.out') as ouf:
-                    with (tests_path / f'{i+1}-{j+1}.sol').open() as ans:
+                    with (tests_path / f'{str(sub).zfill(2)}-{str(test).zfill(2)}.sol').open() as ans:
                         if ans.read().split() == ouf.read().split():
                             result = 'P'
                         else:
                             result = '-'
         groupres += result
+        print(result)
     mainres.append(groupres)
 print('[' + ']['.join(mainres) + ']')
 os.remove('./tmp.out')
